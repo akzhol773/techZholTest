@@ -14,7 +14,6 @@ import travel.travel.service.TravelService;
 @RestController
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE,makeFinal = true)
-@RequestMapping("/travels")
 public class TravelController {
     TravelService travelService;
 
