@@ -31,7 +31,7 @@ public class TravelController {
     }
 
     @GetMapping("/test")
-    public String getTravelById() {
+    public String test() {
         return "Hello World!!!";
     }
 
