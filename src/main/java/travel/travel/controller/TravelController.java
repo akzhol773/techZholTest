@@ -30,9 +30,9 @@ public class TravelController {
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/test/{id}")
-    public String getTravelId(@PathVariable Long id) {
-        return "Travel ID: " + id;
+    @GetMapping("/test")
+    public String test() {
+        return "Hello World!!!";
     }
 
 
