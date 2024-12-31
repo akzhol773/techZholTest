@@ -30,10 +30,11 @@ public class TravelController {
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/test")
-    public String getTravelTest() {
-        return  "Hello World!!!";
+    @GetMapping("/test/{id}")
+    public String getTravelId(@PathVariable Long id) {
+        return "Travel ID: " + id;
     }
+
 
     @PutMapping("/{id}/update")
     public ResponseEntity<SimpleResponse> updateTravelById(@PathVariable @Valid Long id, @RequestBody TravelRequest travelRequest) {
