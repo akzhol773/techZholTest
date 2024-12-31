@@ -31,7 +31,7 @@ jobs:
       run: chmod +x ./gradlew
     
     - name: Build with Gradle (skip tests)
-      run: ./gradlew build -x test
+      run: ./gradlew clean build -x test
       
     - name: Upload JAR
       uses: actions/upload-artifact@v3
@@ -67,9 +67,9 @@ jobs:
         key: ${{ secrets.DIGITALOCEAN_SSH_KEY }}
         script: |
           # Kill existing process if running
-          pid=$(pgrep -f travel)
-          if [ ! -z "$pid" ]; then
-            kill -9 $pid
+          if [ -f app.pid ]; then
+            kill -9 $(cat app.pid)
+            rm app.pid
           fi
           
           # Start the application
@@ -79,3 +79,5 @@ jobs:
             -Dspring.datasource.username=${{ env.POSTGRES_USER }} \
             -Dspring.datasource.password=${{ secrets.POSTGRES_PASSWORD }} \
             *.jar > app.log 2>&1 &
+          echo $! > app.pid
+
