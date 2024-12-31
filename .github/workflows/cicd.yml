@@ -1,31 +1,20 @@
-name: Spring Boot CI/CD
+name: Spring Boot CI/CD with Runner
+
 on:
   push:
     branches: [ "master" ]
   pull_request:
     branches: [ "master" ]
+
 env:
   POSTGRES_DB: travel
   POSTGRES_USER: postgres
   POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+
 jobs:
   build:
     runs-on: ubuntu-latest
     
-    services:
-      postgres:
-        image: postgres:latest
-        env:
-          POSTGRES_DB: ${{ env.POSTGRES_DB }}
-          POSTGRES_USER: ${{ env.POSTGRES_USER }}
-          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
     steps:
     - uses: actions/checkout@v3
     
@@ -42,42 +31,53 @@ jobs:
       run: chmod +x ./gradlew
     
     - name: Build with Gradle (skip tests)
-      run: ./gradlew build -x test
+      run: ./gradlew clean build -x test
       
-    - name: Build Docker image
-      run: |
-        docker build -t travel .
-        docker save travel > app.tar
-        
-    - name: Upload artifact
+    - name: Upload JAR
       uses: actions/upload-artifact@v3
       with:
-        name: app-image
-        path: app.tar
+        name: app-jar
+        path: build/libs/*.jar
+
   deploy:
     needs: build
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/master'
     
     steps:
-    - name: Download artifact
+    - name: Download JAR
       uses: actions/download-artifact@v3
       with:
-        name: app-image
+        name: app-jar
         
-    - name: Deploy to DigitalOcean
+    - name: Deploy to Server
+      uses: appleboy/scp-action@master
+      with:
+        host: ${{ secrets.DIGITALOCEAN_HOST }}
+        username: ${{ secrets.DIGITALOCEAN_USERNAME }}
+        key: ${{ secrets.DIGITALOCEAN_SSH_KEY }}
+        source: "*.jar"
+        target: "/opt/travel/"
+        
+    - name: Start Application
       uses: appleboy/ssh-action@master
       with:
         host: ${{ secrets.DIGITALOCEAN_HOST }}
         username: ${{ secrets.DIGITALOCEAN_USERNAME }}
         key: ${{ secrets.DIGITALOCEAN_SSH_KEY }}
         script: |
-          docker load < app.tar
-          docker stop travel || true
-          docker rm travel || true
-          docker run -d --name travel \
-            -e SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/${{ env.POSTGRES_DB }} \
-            -e SPRING_DATASOURCE_USERNAME=${{ env.POSTGRES_USER }} \
-            -e SPRING_DATASOURCE_PASSWORD=${{ secrets.POSTGRES_PASSWORD }} \
-            -p 8080:8080 \
-            travel
+          # Kill existing process if running
+          if [ -f app.pid ]; then
+            kill -9 $(cat app.pid)
+            rm app.pid
+          fi
+          
+          # Start the application
+          cd /opt/travel
+          nohup java -jar \
+            -Dspring.datasource.url=jdbc:postgresql://localhost:5432/${{ env.POSTGRES_DB }} \
+            -Dspring.datasource.username=${{ env.POSTGRES_USER }} \
+            -Dspring.datasource.password=${{ secrets.POSTGRES_PASSWORD }} \
+            *.jar > app.log 2>&1 &
+          echo $! > app.pid
+
