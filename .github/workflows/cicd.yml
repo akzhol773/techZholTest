@@ -42,6 +42,8 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: app-jar
+      - name: List files
+        run: ls -la
       - name: Deploy and Restart Service
         uses: appleboy/ssh-action@master
         with:
@@ -49,12 +51,10 @@ jobs:
           username: ${{ secrets.DIGITALOCEAN_USERNAME }}
           key: ${{ secrets.DIGITALOCEAN_SSH_KEY }}
           script: |
-            # Copy the new JAR
-            cp *.jar /opt/travel/app.jar
-            # Clean up old JARs (optional)
-            find /opt/travel -name "*.jar" ! -name "app.jar" -delete
-            # Restart the systemd service
-            systemctl daemon-reload
-            systemctl restart travel.service
-            # Check service status
-            systemctl status travel.service
+            pwd
+            ls -la
+            sudo cp *.jar /opt/travel/app.jar
+            sudo chown travel:travel /opt/travel/app.jar
+            sudo chmod 644 /opt/travel/app.jar
+            sudo systemctl restart travel.service
+            sudo systemctl status travel.service
