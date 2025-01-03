@@ -50,34 +50,22 @@ jobs:
       with:
         name: app-jar
         
-    - name: Deploy to Server
-      uses: appleboy/scp-action@master
-      with:
-        host: ${{ secrets.DIGITALOCEAN_HOST }}
-        username: ${{ secrets.DIGITALOCEAN_USERNAME }}
-        key: ${{ secrets.DIGITALOCEAN_SSH_KEY }}
-        source: "*.jar"
-        target: "/opt/travel/"
-        
-    - name: Start Application
+    - name: Deploy and Restart Service
       uses: appleboy/ssh-action@master
       with:
         host: ${{ secrets.DIGITALOCEAN_HOST }}
         username: ${{ secrets.DIGITALOCEAN_USERNAME }}
         key: ${{ secrets.DIGITALOCEAN_SSH_KEY }}
         script: |
-          # Kill existing process if running
-          if [ -f app.pid ]; then
-            kill -9 $(cat app.pid)
-            rm app.pid
-          fi
+          # Copy the new JAR
+          cp *.jar /opt/travel/app.jar
           
-          # Start the application
-          cd /opt/travel
-          nohup java -jar \
-            -Dspring.datasource.url=jdbc:postgresql://localhost:5432/${{ env.POSTGRES_DB }} \
-            -Dspring.datasource.username=${{ env.POSTGRES_USER }} \
-            -Dspring.datasource.password=${{ secrets.POSTGRES_PASSWORD }} \
-            *.jar > app.log 2>&1 &
-          echo $! > app.pid
-
+          # Clean up old JARs (optional)
+          find /opt/travel -name "*.jar" ! -name "app.jar" -delete
+          
+          # Restart the systemd service
+          systemctl daemon-reload
+          systemctl restart travel.service
+          
+          # Check service status
+          systemctl status travel.service
